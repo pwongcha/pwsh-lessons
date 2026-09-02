@@ -17,6 +17,9 @@ PowerShell.
 **Tags:** :material-lock-open-variant: *read-only* = safe to run anywhere ·
 :material-pencil: *writes · staging* = makes changes, stops at the staging network.
 
+Version 1.0.0 · [what's changed](changelog.md)
+{ .ak-home-version }
+
 </div>
 
 ## Get started

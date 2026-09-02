@@ -122,5 +122,31 @@ Add at the end of the Markdown file (the slug must match the filename minus
 ## Deployment
 
 `.github/workflows/deploy-docs.yml` builds `mkdocs/` with `--strict` and deploys
-to GitHub Pages on every push to `main` that touches `mkdocs/**` (or the workflow
-itself). Pages source is set to "GitHub Actions".
+to GitHub Pages on every push to `main` that touches `mkdocs/**`, `CHANGELOG.md`,
+or the workflow itself. Pages source is set to "GitHub Actions".
+
+## Versioning & changelog
+
+The course carries a curriculum version — **SemVer**, where a minor bump adds a
+lesson or reference page, a patch bump revises existing content, and a major bump
+restructures the course. It shows in the footer bar of every page and in the home
+page hero, both linking to the changelog.
+
+- **Source of truth:** `extra.version` in `mkdocs/mkdocs.yml`.
+- **Changelog:** `CHANGELOG.md` at the repo root ([Keep a Changelog](https://keepachangelog.com)
+  format). `mkdocs/docs/changelog.md` pulls it into the site via a snippet, so
+  there's one copy. Record every reader-visible change under `## [Unreleased]` in
+  the same PR that makes the change; tooling/CI changes stay in git history only.
+- The deploy workflow fails if `extra.version`, the top released heading in
+  `CHANGELOG.md`, and the home page's `Version x.y.z` line don't all agree.
+
+### Cutting a release
+
+1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [x.y.z] - YYYY-MM-DD`, add a
+   fresh empty `## [Unreleased]` above it, and update the link refs at the bottom
+   (`[Unreleased]` compare against the new tag; add `[x.y.z]`).
+2. Bump `version:` in `mkdocs/mkdocs.yml` and the `Version x.y.z` line in
+   `mkdocs/docs/index.md` to match.
+3. Commit, then `git tag vx.y.z && git push --tags`.
+4. Create a GitHub Release for the tag; paste that version's changelog section as
+   the notes.

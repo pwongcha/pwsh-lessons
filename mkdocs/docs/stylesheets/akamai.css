@@ -418,6 +418,15 @@ body {
   margin-top: 0;
 }
 
+/* Home hero: the version + changelog line under the Tags note. */
+.md-typeset .ak-home-version {
+  margin-top: .4rem;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--md-default-fg-color--light);
+}
+
 /* --- TOC highlight in Akamai orange ---------------------------------- */
 /* Orange for: a hovered/focused nav link, and the heading you're currently
    scrolled to (the scroll-spy highlight in the integrated TOC). */
@@ -476,7 +485,32 @@ body {
 }
 
 .md-footer__inner {
+  position: relative;   /* anchor for the centred .ak-footer-version */
   padding: 0 .6rem;
+}
+
+/* Static course-version marker, dropped into the middle of the prev/next bar
+   by overrides/partials/footer.html. Absolutely centred so it never shifts the
+   prev/next links; opaque chip so a long neighbouring title slides under it. */
+.ak-footer-version {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  padding: .15rem .5rem;
+  border-radius: 2rem;
+  background: var(--md-footer-bg-color);
+  color: var(--md-footer-fg-color--light);
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+.ak-footer-version:hover,
+.ak-footer-version:focus {
+  color: var(--md-footer-fg-color);
 }
 
 .md-footer__link {

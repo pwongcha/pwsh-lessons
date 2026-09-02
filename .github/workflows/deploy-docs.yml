@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "mkdocs/**"
+      - "CHANGELOG.md"
       - ".github/workflows/deploy-docs.yml"
   workflow_dispatch:
 
@@ -33,6 +34,21 @@ jobs:
       - name: Install dependencies
         working-directory: mkdocs
         run: pip install -r requirements.txt
+
+      - name: Check version is consistent
+        run: |
+          set -eu
+          # grep -m1 stops at the first match (exits clean, no SIGPIPE); sed then
+          # pulls the x.y.z out of that one line.
+          v='[0-9]+\.[0-9]+\.[0-9]+'
+          yml=$(grep -m1 -E "^[[:space:]]+version:[[:space:]]*\"?$v" mkdocs/mkdocs.yml | sed -E "s/.*version:[[:space:]]*\"?($v)\"?.*/\\1/")
+          changelog=$(grep -m1 -E "^## \[$v\]" CHANGELOG.md | sed -E "s/^## \[($v)\].*/\\1/")
+          home=$(grep -m1 -E "Version $v" mkdocs/docs/index.md | sed -E "s/.*Version ($v).*/\\1/")
+          echo "mkdocs.yml=$yml  CHANGELOG.md=$changelog  index.md=$home"
+          if [ -z "$yml" ] || [ "$yml" != "$changelog" ] || [ "$yml" != "$home" ]; then
+            echo "::error::Version mismatch — mkdocs.yml extra.version, the top CHANGELOG.md release, and the home page line must all match."
+            exit 1
+          fi
 
       - name: Build site
         working-directory: mkdocs

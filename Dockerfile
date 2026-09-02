@@ -10,6 +10,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY mkdocs/ ./
 
+# The course changelog is kept at the repo root (GitHub renders it there);
+# docs/changelog.md pulls it into the site via a pymdownx snippet whose
+# base_path is "..", so the file has to sit one level above the build dir.
+COPY CHANGELOG.md /CHANGELOG.md
+
 # The GSAP platform serves every app under a path prefix. Baking the full public
 # URL in at build time makes canonical links, sitemap and Material's instant
 # navigation resolve correctly. Page assets are emitted as relative paths, so the

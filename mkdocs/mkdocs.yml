@@ -7,6 +7,7 @@ docs_dir: docs
 
 theme:
   name: material
+  custom_dir: overrides
   language: en
   icon:
     logo: material/home     # masthead icon (default was material/library, the book)
@@ -64,7 +65,9 @@ markdown_extensions:
       anchor_linenums: true
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      base_path: [".."]   # repo root, relative to mkdocs/ — lets docs/changelog.md pull in CHANGELOG.md
+      check_paths: true
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.emoji:
@@ -73,6 +76,12 @@ markdown_extensions:
   - toc:
       permalink: true
 
+
+extra:
+  # Course version (curriculum SemVer). Bump in the same commit as the
+  # CHANGELOG.md release entry; CI checks the two agree. Shown in the footer
+  # bar and the home page hero.
+  version: "1.0.0"
 
 extra_css:
   - stylesheets/akamai.css
@@ -113,3 +122,4 @@ nav:
       - "Cheat sheet": reference/cheat-sheet.md
       - "Glossary": glossary.md
       - "Resources": resources.md
+      - "Changelog": changelog.md
