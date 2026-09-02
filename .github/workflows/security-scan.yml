@@ -40,7 +40,7 @@ jobs:
 
       # Full report -> SARIF -> GitHub code scanning (Security tab).
       - name: Trivy scan (SARIF)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: pwsh-lessons:scan
           scan-type: image
@@ -59,7 +59,7 @@ jobs:
 
       # Second pass: print a table and fail the job on HIGH/CRITICAL.
       - name: Trivy scan (gate)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: pwsh-lessons:scan
           scan-type: image
@@ -78,7 +78,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Trivy config scan (SARIF)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -95,7 +95,7 @@ jobs:
           category: trivy-config
 
       - name: Trivy config scan (gate)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
