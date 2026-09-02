@@ -34,6 +34,33 @@ mkdocs build            # -> mkdocs/site/   (pure static HTML)
 mkdocs build --strict   # same, but fail on any broken link / orphan page
 ```
 
+## Run in Docker
+
+The root `Dockerfile` builds the site and serves it with nginx on port 8080
+(plain HTTP), under the path prefix `/pwsh-lessons` — the shape the Global
+Services App Platform (GSAP) expects.
+
+```bash
+docker build -t pwsh-lessons .
+docker run --rm -p 8080:8080 pwsh-lessons
+# open http://localhost:8080/pwsh-lessons/
+```
+
+Podman works the same way (on macOS, start the VM once with `podman machine start`):
+
+```bash
+podman machine start                        # macOS only, first run per boot
+podman build -t pwsh-lessons .
+podman run --rm -p 8080:8080 pwsh-lessons
+# open http://localhost:8080/pwsh-lessons/
+```
+
+`/` redirects to `/pwsh-lessons/`. The public URL is baked in at build time via
+the `SITE_URL` build arg (default `https://gsap.akamai.com/pwsh-lessons/`); page
+assets are relative, so the site also works unchanged at `/` or any other
+prefix. To preview with a different prefix, rebuild with
+`--build-arg SITE_URL=https://example.com/foo/` and adjust `nginx/default.conf`.
+
 ## What's custom
 
 Relative to a stock Material site, all under `mkdocs/docs/`:
