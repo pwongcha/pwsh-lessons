@@ -28,7 +28,13 @@
 
   function slugFromLessonLink(href) {
     // ".../lessons/01-powershell-primer/"  ->  "01-powershell-primer"
-    var m = href && href.match(/lessons\/([^\/]+)\/?(?:#.*)?$/);
+    //
+    // Match only the "NN-kebab" lesson shape. With navigation.instant Material
+    // rewrites every in-page href to an absolute URL, and this site is served
+    // under a "/pwsh-lessons/" path — so a loose /lessons\// match also catches
+    // the site prefix and would count changelog/glossary/resources and every
+    // heading anchor as "lessons".
+    var m = href && href.match(/lessons\/(\d{2}-[a-z0-9-]+)\/?(?:[#?].*)?$/);
     return m ? m[1] : null;
   }
 
