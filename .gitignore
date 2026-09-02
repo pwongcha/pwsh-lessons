@@ -1,0 +1,5 @@
+.DS_Store
+mkdocs/.venv/
+mkdocs/site/
+__pycache__/
+*.pyc

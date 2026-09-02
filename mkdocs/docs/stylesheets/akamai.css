@@ -1,0 +1,528 @@
+/* ==========================================================================
+   Akamai PowerShell Lessons — Material theme overrides
+   Brand palette is an approximation — see NOTES.md before external use.
+   ========================================================================== */
+
+:root {
+  --ak-radius: 10px;
+  --ak-blue: #0090ff;
+  --ak-blue-dk: #0064c8;
+  --ak-violet: #6e56cf;
+  --ak-ink: #12161c;
+  --ak-navy: #0d1b2a;
+  --ak-orange: #f58220;
+  --ak-ok: #1a7f52;
+  --ak-done: #2e9c4a;
+  /* "lesson complete" green — borrowed from the help admonition */
+  --ak-done-on: #ffffff;
+  /* text/glyph on a --ak-done fill */
+  --ak-warn: #b26b00;
+  --ak-danger: #c6392f;
+  --ak-grad: linear-gradient(120deg, #0d1b2a 0%, #12161c 55%, #1a2740 100%);
+}
+
+/* --- Brand colours into Material's tokens -------------------------------- */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #0064c8;
+  --md-primary-fg-color--light: #0090ff;
+  --md-primary-fg-color--dark: #004a96;
+  --md-accent-fg-color: #6e56cf;
+  --md-typeset-a-color: #0064c8;
+
+  /* lesson cards — pop against the page's radial wash */
+  --ak-card-bg: #ffffff;
+  --ak-card-bd: rgba(15, 27, 42, .16);
+  --ak-card-sh: 0 1px 2px rgba(15, 27, 42, .07), 0 10px 26px rgba(15, 27, 42, .08);
+
+  /* inline `code` chip — darker than Material's default so it reads in body text */
+  --ak-code-bg: #e0e4ea;
+  --ak-code-bd: #ccd2da;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #0090ff;
+  --md-primary-fg-color--light: #4db1ff;
+  --md-primary-fg-color--dark: #0064c8;
+  --md-accent-fg-color: #8f79e0;
+  --md-typeset-a-color: #4db1ff;
+
+  /* Lift the page surface clear of the near-black header/footer gradient.
+     The --light/--lighter/--lightest variants are the same colour at
+     decreasing opacity (Material's convention), so keep them in sync. */
+  --md-default-bg-color: rgb(18, 33, 65);          /* #122141 */
+  --md-default-bg-color--light: rgba(18, 33, 65, .7);
+  --md-default-bg-color--lighter: rgba(18, 33, 65, .3);
+  --md-default-bg-color--lightest: rgba(18, 33, 65, .12);
+
+  --ak-card-bg: rgba(255, 255, 255, .05);
+  --ak-card-bd: rgba(255, 255, 255, .18);
+  --ak-card-sh: inset 0 1px 0 rgba(255, 255, 255, .05), 0 8px 28px rgba(0, 0, 0, .45);
+
+  --ak-done: #5cc46a;
+  --ak-done-on: #0c2411;
+
+  --ak-code-bg: rgba(255, 255, 255, .09);
+  --ak-code-bd: rgba(255, 255, 255, .13);
+}
+
+/* --- Page background: diagonal brand wash behind all content ---------- */
+/* Mixed against Material's --md-default-bg-color, so it works in light AND
+   dark mode. Fixed so it stays put while the page scrolls.
+   DIRECTION options for linear-gradient():
+     to bottom right      corner → corner, adapts to window aspect
+     135deg               top-left → bottom-right  (0deg=up, 90deg=right)
+     45deg                bottom-left → top-right
+   Swap linear-gradient(...) for radial-gradient(circle at 50% 50%, ...)
+   to go back to a centred glow. */
+body {
+  background-color: var(--md-default-bg-color);
+  background-image:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--ak-blue) 1%, var(--md-default-bg-color)) 80%,
+      /* light blue — top-left */
+      color-mix(in srgb, var(--ak-blue-dk) 20%, var(--md-default-bg-color)) 100%,
+      /* dark blue  — middle   */
+      var(--md-default-bg-color) 10%);
+  /* fades into page bg    */
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Dark mode: keep the wash faint so the page surface stays lifted and doesn't
+   sink back toward the header/footer gradient. */
+[data-md-color-scheme="slate"] body {
+  background-image:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--ak-blue) 5%, var(--md-default-bg-color)) 0%,
+      var(--md-default-bg-color) 55%,
+      color-mix(in srgb, var(--ak-blue-dk) 6%, var(--md-default-bg-color)) 100%);
+}
+
+/* --- Header / tabs: Akamai dark gradient with a spectrum underline ------- */
+.md-header,
+.md-tabs {
+  background: var(--ak-grad);
+}
+
+.md-header {
+  border-bottom: 3px solid transparent;
+  border-image: linear-gradient(120deg, var(--ak-blue), var(--ak-violet)) 1;
+}
+
+/* --- Lesson metadata (paragraph after the H1 with { .lesson-meta }) ----- */
+/* One fact per line — items are separated by <br> in the Markdown. */
+.md-typeset .lesson-meta {
+  margin: .2rem 0 1.4rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  font-size: .74rem;
+  line-height: 1.9;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--md-default-fg-color--light);
+  font-weight: 600;
+}
+
+/* --- Inline prompt marker: `PS>` in code we type ----------------------- */
+.md-typeset .prompt::before {
+  content: "PS> ";
+  color: var(--ak-blue);
+}
+
+/* --- Inline `code`: darker chip so it stands out in running text ------- */
+/* Applies only to inline code — code blocks (`pre > code`, `.highlight`)
+   keep their own theming. */
+.md-typeset :not(pre):not(.highlight)>code {
+  background-color: var(--ak-code-bg);
+  border: 1px solid var(--ak-code-bd);
+  border-radius: .2em;
+  padding: .1em .35em;
+}
+
+/* --- Lesson timer (paired with javascripts/timer.js) ------------------ */
+.ak-timer {
+  display: inline-flex;
+  margin: -.4rem 0 1.6rem;
+  font-size: .74rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.ak-timer button {
+  border: 1px solid var(--md-default-fg-color--lighter);
+  background: var(--md-default-bg-color);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: .4rem .85rem;
+  white-space: nowrap;
+}
+
+.ak-timer button:hover {
+  border-color: var(--ak-blue);
+}
+
+.ak-timer__main {
+  border-radius: 2rem 0 0 2rem;
+}
+
+.ak-timer__reset {
+  border-radius: 0 2rem 2rem 0;
+  border-left: 0;
+  padding: .4rem .6rem;
+}
+
+.ak-timer[data-mode="idle"] .ak-timer__main {
+  border-radius: 2rem;
+}
+.ak-timer[data-mode="idle"] .ak-timer__reset {
+  display: none;
+}
+
+.ak-timer[data-mode="running"] .ak-timer__main {
+  color: var(--ak-done);
+  border-color: var(--ak-done);
+}
+
+.ak-timer[data-mode="done"] .ak-timer__main {
+  color: #fff;
+  background: var(--ak-danger);
+  border-color: var(--ak-danger);
+}
+
+@keyframes ak-timer-ring {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+.ak-timer--ring {
+  animation: ak-timer-ring .5s ease-in-out 4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ak-timer--ring { animation: none; }
+}
+
+/* --- Quiz widget (paired with javascripts/quiz.js) --------------------- */
+.md-typeset .quiz {
+  margin: 1.2rem 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-left: 4px solid var(--ak-violet);
+  border-radius: .2rem;
+  background: var(--md-default-bg-color);
+}
+
+.md-typeset .quiz .q {
+  font-weight: 700;
+  margin: 0 0 .6rem;
+}
+
+.md-typeset .quiz .opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  background: var(--md-default-bg-color);
+  color: inherit;
+  border-radius: .2rem;
+  padding: .55rem .8rem;
+  margin: .35rem 0;
+  font: inherit;
+  font-size: .8rem;
+  cursor: pointer;
+  transition: border-color .1s ease, background .1s ease;
+}
+
+.md-typeset .quiz .opt:hover:not(:disabled) {
+  border-color: var(--ak-blue);
+}
+
+.md-typeset .quiz .opt:disabled {
+  cursor: default;
+}
+
+.md-typeset .quiz .opt.correct {
+  border-color: var(--ak-ok);
+  background: rgba(26, 127, 82, .12);
+}
+
+.md-typeset .quiz .opt.incorrect {
+  border-color: var(--ak-danger);
+  background: rgba(198, 57, 47, .12);
+}
+
+.md-typeset .quiz .fb {
+  margin: .5rem 0 0;
+  font-size: .78rem;
+  min-height: 1.1em;
+  font-weight: 600;
+}
+
+.md-typeset .quiz .fb.correct {
+  color: var(--ak-ok);
+}
+
+.md-typeset .quiz .fb.incorrect {
+  color: var(--ak-danger);
+}
+
+/* --- Progress: "mark complete" control + index ticks ------------------- */
+.ak-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 2rem 0 0;
+  padding: .55rem 1rem;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 2rem;
+  background: var(--md-default-bg-color);
+  color: inherit;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ak-complete:hover {
+  border-color: var(--ak-blue);
+}
+
+.ak-complete[data-done="true"] {
+  border-color: var(--ak-done);
+  background: var(--ak-done);
+  color: var(--ak-done-on);
+}
+
+.ak-complete[data-done="true"]:hover {
+  border-color: var(--ak-done);
+  filter: brightness(.95);
+}
+
+.ak-progress-summary {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--md-default-fg-color--light);
+}
+
+/* Home card: completed lesson gets a filled green check badge... */
+.md-typeset .grid.cards .ak-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05em;
+  height: 1.05em;
+  margin-left: .4em;
+  border-radius: 999px;
+  background: var(--ak-done);
+  color: var(--ak-done-on);
+  font-size: .82em;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: baseline;
+}
+
+/* ...and a green "done" frame on the whole card (class added by progress.js). */
+.md-typeset .grid.cards> :is(ul, ol)>li.ak-card--done {
+  border-color: var(--ak-done);
+  box-shadow: var(--ak-card-sh), inset .18rem 0 0 var(--ak-done);
+}
+
+.md-typeset .grid.cards> :is(ul, ol)>li.ak-card--done:is(:hover, :focus-within) {
+  border-color: var(--ak-done);
+  box-shadow: var(--ak-card-sh), inset .18rem 0 0 var(--ak-done), 0 0 0 .05rem var(--ak-done);
+}
+
+/* --- Home cards: "11" badge — no numeric-11-box glyph exists in MDI, so
+   mimic the numeric-N-box look (knockout digits on a filled square). --- */
+.md-typeset .grid.cards .ak-num {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: .19em;
+  background: var(--md-default-fg-color);
+  color: var(--md-default-bg-color);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.07em;
+  text-indent: -.07em;
+  /* re-centre against the negative tracking */
+  font-variant-numeric: tabular-nums;
+  vertical-align: text-bottom;
+  /* matches Material's .lg icon alignment */
+}
+
+/* --- Home cards: CTA left, time + access pushed to the right, lightened  */
+.md-typeset .grid.cards> :is(ul, ol)>li>p:last-child:has(.ak-card-foot) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .2rem .75rem;
+}
+
+.md-typeset .grid.cards .ak-card-foot {
+  margin-left: auto;
+  font-weight: 300;
+  font-size: .72rem;
+  color: var(--md-default-fg-color--light);
+}
+
+.md-typeset .grid.cards .ak-card-foot .twemoji {
+  vertical-align: -.15em;
+}
+
+.md-typeset .grid.cards .ak-card-foot .twemoji svg {
+  height: .95em;
+  width: .95em;
+}
+
+/* --- Grid cards: make them read as raised panels ---------------------- */
+.md-typeset .grid.cards> :is(ul, ol)>li,
+.md-typeset .grid.cards>.card {
+  background: var(--ak-card-bg);
+  border: .05rem solid var(--ak-card-bd);
+  box-shadow: var(--ak-card-sh);
+}
+
+.md-typeset .grid.cards> :is(ul, ol)>li:is(:hover, :focus-within),
+.md-typeset .grid.cards>.card:hover {
+  border-color: var(--ak-orange);
+  box-shadow: var(--ak-card-sh), 0 0 0 .05rem var(--ak-orange);
+}
+
+/* --- Home page: "Get started" reads as a 2x2 block, not 3 + 1 orphan -- */
+.md-content:has(#course-home) h2#get-started+.grid.cards {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-content:has(#course-home) h2#get-started+.grid.cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Home page: drop the auto page title, pull content to the top ----- */
+/* index.md has no `# heading`, so Material auto-generates one from the nav
+   ("home"). It's redundant with the masthead — hide it and close the gap. */
+.md-content:has(#course-home) .md-content__inner>h1:first-child {
+  display: none;
+}
+
+.md-content:has(#course-home) #course-home> :first-child {
+  margin-top: 0;
+}
+
+/* --- TOC highlight in Akamai orange ---------------------------------- */
+/* Orange for: a hovered/focused nav link, and the heading you're currently
+   scrolled to (the scroll-spy highlight in the integrated TOC). */
+.md-nav .md-nav__link:is(:hover, :focus),
+.md-nav .md-nav__link:is(:hover, :focus) code,
+.md-nav .md-nav__link--active,
+.md-nav .md-nav__link--active code {
+  color: var(--ak-orange) !important;
+}
+
+/* The current-page link also carries --active, but we want it to keep
+   Material's blue. Section labels (which are --active as an ancestor of the
+   current page) are excluded, so they keep Material's default styling. */
+.md-nav--primary .md-nav__item--active:not(.md-nav__item--section)>.md-nav__link {
+  color: var(--md-typeset-a-color) !important;
+}
+
+/* --- Sidebar: indent the pages under a section label ------------------- */
+/* navigation.sections renders "Get started" etc. as a flush header;
+   this pushes its lesson links in and adds a guide line. */
+.md-nav--primary .md-nav__item--section>.md-nav>.md-nav__list {
+  margin-left: .5rem;
+  padding-left: .5rem;
+  border-left: .05rem solid var(--md-default-fg-color--lighter);
+}
+
+/* --- Integrated TOC: indent headings under their parent (h3s under an
+   h2 like "A · …" / "B · …"). toc.integrate embeds the secondary nav in
+   the primary nav, where Material drops its usual TOC indentation. */
+.md-nav--primary .md-nav--secondary .md-nav__item .md-nav>.md-nav__list {
+  margin-left: .35rem;
+  padding-left: .6rem;
+  border-left: .05rem solid var(--md-default-fg-color--lighter);
+}
+
+/* --- Sticky footer (slim) ------------------------------------------- */
+/* (The top tabs are already sticky via `navigation.tabs.sticky` in
+   mkdocs.yml.) Material's footer isn't sticky by default — pin it to the
+   bottom of the viewport, drop the copyright strip, and compress the
+   prev/next bar to a single tight line. */
+.md-footer {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 5;
+  transition: transform .25s ease;
+}
+
+.md-footer--hidden {
+  /* toggled by javascripts/footer-autohide.js */
+  transform: translateY(100%);
+}
+
+.md-footer-meta {
+  /* copyright + "Made with Material" */
+  display: none;
+}
+
+.md-footer__inner {
+  padding: 0 .6rem;
+}
+
+.md-footer__link {
+  padding-top: .45rem;
+  padding-bottom: .45rem;
+}
+
+.md-footer__direction {
+  /* the "Previous" / "Next" labels */
+  display: none;
+}
+
+.md-footer__title {
+  font-size: .78rem;
+  line-height: 1.25;
+  padding: 0 .5rem;
+}
+
+.md-footer__title .md-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.md-main {
+  padding-bottom: 2.8rem;
+  /* ≈ slim footer height */
+}
+
+.md-sidebar--primary .md-sidebar__scrollwrap {
+  padding-bottom: 2.8rem;
+}
+
+/* --- Print ------------------------------------------------------------- */
+@media print {
+
+  .md-header,
+  .md-tabs,
+  .md-sidebar,
+  .md-footer,
+  .ak-complete,
+  .quiz {
+    display: none !important;
+  }
+
+  .md-content {
+    margin: 0;
+  }
+}

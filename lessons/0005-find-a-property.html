@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 05 · Find a Property</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<header class="ak-masthead">
+  <div class="wrap">
+    <div class="ak-brand"><span class="wave"></span> Akamai · PowerShell 101</div>
+    <p class="ak-kicker">Lesson 05 — Property Manager</p>
+    <h1>Find a property and read its state</h1>
+    <p class="sub">Search by name or hostname, then pull version status, hostnames, activation history, and the rule tree — everything the Property Manager screens show you, from the shell.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="ak-meta">
+    <span class="pill">~15 min</span>
+    <span class="pill">Read-only — safe</span>
+    <span class="pill">Needs: working <code>.edgerc</code></span>
+    <span class="pill">First real task</span>
+  </div>
+
+  <div class="card">
+    <p><strong>Where this sits.</strong> Setup is done. This is the first task from your <a href="../MISSION.md">mission</a>. Everything here is a <code>Get-</code> or <code>Find-</code> — you cannot break anything. The goal is to get fast at answering “what version is live, on what hostnames, changed by whom, doing what” without opening Control Center.</p>
+    <p><strong>The win:</strong> one screen of output that profiles any property — its live/staging versions, its hostnames, its last few activations, and its top-level rules.</p>
+  </div>
+
+  <h2><span class="n">1</span>Find the property</h2>
+  <p><code>Find-Property</code> searches. It has four modes — pick by what you know:</p>
+  <pre><code><span class="prompt"></span><span class="k">Find-Property</span> -PropertyName <span class="s">'*www*'</span>          <span class="c"># by property name (wildcards ok)</span>
+<span class="prompt"></span><span class="k">Find-Property</span> -PropertyHostname www.example.com  <span class="c"># by a hostname it serves</span>
+<span class="prompt"></span><span class="k">Find-Property</span> -EdgeHostname www.example.com.edgekey.net
+<span class="prompt"></span><span class="k">Find-Property</span> -IncludeName <span class="s">'*origin*'</span>          <span class="c"># by include name</span></code></pre>
+  <p>Narrow to what is active:</p>
+  <pre><code><span class="prompt"></span><span class="k">Find-Property</span> -PropertyName <span class="s">'*shop*'</span> -JustProductionActive
+<span class="prompt"></span><span class="k">Find-Property</span> -PropertyName <span class="s">'*shop*'</span> -Latest</code></pre>
+  <p>The result gives you the <strong>property name</strong>, its <strong>propertyId</strong>, the matching version, and the group/contract — the identifiers the next cmdlets want.</p>
+
+  <h2><span class="n">2</span>Open the property record</h2>
+  <pre><code><span class="prompt"></span><span class="v">$p</span> = <span class="k">Get-Property</span> -PropertyName www.example.com
+
+<span class="prompt"></span><span class="v">$p</span> | <span class="k">Select-Object</span> propertyName, propertyId, latestVersion,
+                       stagingVersion, productionVersion, groupId, contractId
+
+<span class="o">propertyName      : www.example.com
+propertyId        : prp_678901
+latestVersion     : 14
+stagingVersion    : 14
+productionVersion : 12
+groupId           : grp_183544
+contractId        : ctr_1-3CV382</span></code></pre>
+  <p>Already this tells you: <strong>v12 is live</strong>, <strong>v14 is on staging</strong>, and there are unreleased edits in <strong>v13–v14</strong>.</p>
+  <div class="callout warn">
+    <span class="lbl">If Get-Property errors with “multiple properties”</span>
+    The name exists in more than one group. Add the ones from your <a href="0004-account-base-ids.html">account map</a>:
+    <code>Get-Property -PropertyName x -GroupID grp_183544 -ContractId ctr_1-3CV382</code>.
+  </div>
+
+  <h2><span class="n">3</span>Version history</h2>
+  <pre><code><span class="prompt"></span><span class="k">Get-PropertyVersion</span> -PropertyName www.example.com |
+    <span class="k">Sort-Object</span> propertyVersion -Descending |
+    <span class="k">Select-Object</span> propertyVersion, updatedByUser, updatedDate,
+                   productionStatus, stagingStatus, note -First 5
+
+<span class="o">propertyVersion updatedByUser updatedDate           productionStatus stagingStatus note
+--------------- ------------- -----------           ---------------- ------------- ----
+             14 jsmith        2026-08-28T09:11:02Z  INACTIVE         ACTIVE        cache tuning
+             13 jsmith        2026-08-27T16:40:55Z  INACTIVE         INACTIVE      wip
+             12 achen         2026-08-19T11:02:31Z  ACTIVE           INACTIVE      Q3 origin move</span></code></pre>
+  <p>One version in detail:</p>
+  <pre><code><span class="prompt"></span><span class="k">Get-PropertyVersion</span> -PropertyName www.example.com -PropertyVersion latest</code></pre>
+
+  <h2><span class="n">4</span>Which hostnames does it serve?</h2>
+  <pre><code><span class="prompt"></span><span class="k">Get-PropertyHostname</span> -PropertyName www.example.com -PropertyVersion latest |
+    <span class="k">Select-Object</span> cnameFrom, cnameTo, certStatus
+
+<span class="o">cnameFrom            cnameTo                              certStatus
+---------            -------                              ----------
+www.example.com      www.example.com.edgekey.net          {@{status=DEPLOYED...}}
+img.example.com      img.example.com.edgekey.net          {@{status=DEPLOYED...}}</span></code></pre>
+  <p><code>cnameFrom</code> is the customer-facing hostname; <code>cnameTo</code> is the edge hostname the DNS CNAME must point at.</p>
+
+  <h2><span class="n">5</span>Activation history</h2>
+  <pre><code><span class="prompt"></span><span class="k">Get-PropertyActivation</span> -PropertyName www.example.com |
+    <span class="k">Sort-Object</span> submitDate -Descending |
+    <span class="k">Select-Object</span> propertyVersion, network, status, submitDate, note -First 6
+
+<span class="o">propertyVersion network  status   submitDate            note
+--------------- -------  ------   ----------            ----
+             14 STAGING  ACTIVE   2026-08-28T09:14:00Z  cache tuning
+             12 PRODUCTION ACTIVE 2026-08-19T12:20:11Z  Q3 origin move
+             12 STAGING  ACTIVE   2026-08-19T11:40:03Z  Q3 origin move</span></code></pre>
+  <p>This is the audit trail: who pushed which version to which network, and when.</p>
+
+  <h2><span class="n">6</span>Read the rule tree</h2>
+  <p><code>Get-PropertyRules</code> returns the whole configuration as one big object. Don't print it raw — navigate it.</p>
+  <pre><code><span class="prompt"></span><span class="v">$r</span> = <span class="k">Get-PropertyRules</span> -PropertyName www.example.com -PropertyVersion latest
+
+<span class="prompt"></span><span class="v">$r</span>.rules.name                <span class="c"># "default"</span>
+<span class="prompt"></span><span class="v">$r</span>.rules.children.name       <span class="c"># the named child rules</span>
+<span class="o">Offload
+Performance
+Origin Failover
+mPulse RUM</span>
+
+<span class="c"># the default-rule behaviors (origin, caching, cpCode...):</span>
+<span class="prompt"></span><span class="v">$r</span>.rules.behaviors.name
+<span class="o">origin
+cpCode
+caching
+allowPost</span>
+
+<span class="c"># inspect one behavior's settings:</span>
+<span class="prompt"></span>(<span class="v">$r</span>.rules.behaviors | <span class="k">Where-Object</span> name -eq <span class="s">'origin'</span>).options |
+    <span class="k">Select-Object</span> originType, hostname, forwardHostHeader
+<span class="o">originType              hostname                 forwardHostHeader
+----------              --------                 -----------------
+CUSTOMER                origin-www.example.com    REQUEST_HOST</span></code></pre>
+  <p>Working on it offline or diffing it? Write it to a file:</p>
+  <pre><code><span class="prompt"></span><span class="k">Get-PropertyRules</span> -PropertyName www.example.com -PropertyVersion latest `
+    -OutputToFile -OutputFileName www-v14.json</code></pre>
+  <div class="callout map">
+    <span class="lbl">The shape to remember</span>
+    A rule tree is one root <code>rules</code> object. Every rule has <code>behaviors[]</code>, <code>criteria[]</code>, and <code>children[]</code> (nested rules). That recursion is the entire model — Lesson 06 edits it, Lesson 08's security custom rules echo it.
+  </div>
+
+  <div class="task">
+    <h3>Try it — profile a real property</h3>
+    <p>Pick any property on your account. Fill in its name and run this block. It produces a one-screen profile.</p>
+    <pre><code>$name = 'YOUR-PROPERTY-NAME'
+
+$p = Get-Property -PropertyName $name
+"`n=== $($p.propertyName)  ($($p.propertyId)) ==="
+"live v$($p.productionVersion) | staging v$($p.stagingVersion) | latest v$($p.latestVersion)"
+
+"`n-- hostnames --"
+Get-PropertyHostname -PropertyName $name -PropertyVersion latest |
+    Select-Object cnameFrom, cnameTo | Format-Table -AutoSize
+
+"`n-- last 3 activations --"
+Get-PropertyActivation -PropertyName $name |
+    Sort-Object submitDate -Descending |
+    Select-Object propertyVersion, network, status, note -First 3 | Format-Table -AutoSize
+
+"`n-- top-level rules --"
+$r = Get-PropertyRules -PropertyName $name -PropertyVersion latest
+$r.rules.children.name
+
+"`n-- origin --"
+($r.rules.behaviors | Where-Object name -eq 'origin').options.hostname</code></pre>
+
+    <details class="reveal">
+      <summary>Show what to expect &amp; how to read it</summary>
+      <ul>
+        <li><strong>live vs latest gap</strong> — if <code>productionVersion</code> &lt; <code>latestVersion</code>, someone has staged or draft changes not yet in production.</li>
+        <li><strong>origin under a child rule?</strong> — <code>$r.rules.behaviors</code> only shows the <em>default</em> rule. If origin is empty there, it's set in a child: <code>$r.rules.children | Where-Object { $_.behaviors.name -contains 'origin' }</code>.</li>
+        <li><strong>no activations</strong> — brand-new property never pushed anywhere.</li>
+        <li>Backtick-n (<code>`n</code>) inside a double-quoted string is a newline — that's how the block gets its spacing.</li>
+      </ul>
+    </details>
+  </div>
+
+  <h2><span class="n">7</span>Quick check</h2>
+
+  <div class="quiz" data-answer="1">
+    <p class="q">A property shows <code>productionVersion 8</code> and <code>latestVersion 11</code>. This means:</p>
+    <button class="opt">Versions 9 to 11 failed activation and were rolled back to 8</button>
+    <button class="opt">Versions 9 to 11 are edits that are not live in production</button>
+    <button class="opt">The property is broken and stuck three versions behind now</button>
+    <p class="fb"
+       data-correct="Right — latest is just the newest saved version; production points at whatever was activated."
+       data-incorrect="Nothing is broken. latestVersion is the newest edit; productionVersion is what's activated live."></p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <p class="q">In a rule tree object, nested rules under a rule are found on which property?</p>
+    <button class="opt">The <code>criteria</code> array, one entry per nested rule below</button>
+    <button class="opt">The <code>behaviors</code> array, filtered to the rule-type ones</button>
+    <button class="opt">The <code>children</code> array, each entry a full rule itself</button>
+    <p class="fb"
+       data-correct="Yes — rules.children holds nested rules, each with its own behaviors, criteria, and children."
+       data-incorrect="Nested rules live in children[]. behaviors and criteria describe the current rule, not sub-rules."></p>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <p class="q"><code>Get-Property -PropertyName x</code> fails saying multiple properties match. You should:</p>
+    <button class="opt">Add <code>-GroupID</code> and <code>-ContractId</code> to point at one group</button>
+    <button class="opt">Add <code>-Force</code> so it returns the first matching property found</button>
+    <button class="opt">Rename the property in Control Center so the name is unique</button>
+    <p class="fb"
+       data-correct="Correct — the same name exists in several groups; the group + contract disambiguate it."
+       data-incorrect="The name isn't unique across groups. Scope with -GroupID and -ContractId from your account map."></p>
+  </div>
+
+  <div class="ak-source">
+    <span class="lbl">Primary source — read this next</span>
+    <a href="https://techdocs.akamai.com/powershell/docs/property/property">Akamai — <em>PowerShell: Property</em></a> guide,
+    and the <a href="https://techdocs.akamai.com/property-mgr/reference/get-properties">Property Manager API — <em>List properties / Get a property</em></a> for the response fields.
+  </div>
+
+  <div class="ak-ask">
+    Rule tree hard to navigate? Paste me the output of <code>$r.rules | ConvertTo-Json -Depth 3</code> (it's config, not secret) and tell me what you're hunting for — a behavior, a match condition, a specific child rule — and I'll show you the exact path to it.
+  </div>
+
+  <div class="ak-nav">
+    <a href="0004-account-base-ids.html">← Lesson 04 — Account base IDs</a>
+    <span class="mid"><a href="../index.html">☰ All lessons</a></span>
+    <a href="0006-update-a-property.html">Lesson 06 — Update a property →</a>
+  </div>
+
+  <p style="margin-top:2rem; font-size:.82rem; color:var(--ak-slate-lt)">
+    See also: <a href="../reference/powershell-akamai-cheatsheet.html">Reference — cheat sheet</a> ·
+    <a href="../GLOSSARY.md">Glossary</a> ·
+    <a href="../RESOURCES.md">All resources</a>
+  </p>
+
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

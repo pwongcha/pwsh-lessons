@@ -1,0 +1,114 @@
+site_name: "Akamai PowerShell Lessons"
+site_description: "Operate Akamai from a Windows shell — twelve short, practical lessons."
+site_author: "Akamai"
+copyright: "© 2026 Akamai Technologies"
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  icon:
+    logo: material/home     # masthead icon (default was material/library, the book)
+  # logo: assets/logo.svg   # use instead of icon.logo for a custom image file
+  # favicon: assets/favicon.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  font:
+    text: Instrument Sans   # matches akamai.com
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.indexes
+    - navigation.expand
+    - navigation.top
+    - navigation.sections
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer          # automatic previous / next
+    - toc.integrate
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - search.share
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - def_list
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+
+
+extra_css:
+  - stylesheets/akamai.css
+
+extra_javascript:
+  - javascripts/quiz.js
+  - javascripts/progress.js
+  - javascripts/footer-autohide.js
+  - javascripts/favicon.js
+  - javascripts/timer.js
+  - javascripts/primary-source-links.js
+
+plugins:
+  - search
+  - tags
+
+nav:
+  - home: index.md
+  - Get started:
+      - "PowerShell primer": lessons/01-powershell-primer.md
+      - "Install the Akamai module": lessons/02-install-the-module.md
+      - "API client & .edgerc": lessons/03-api-client-and-edgerc.md
+      - "Account base IDs": lessons/04-account-base-ids.md
+  - Certificates:
+      - "Inspect & update a certificate": lessons/05-inspect-and-update-a-certificate.md
+  - Property Manager:
+      - "Find a property": lessons/06-find-a-property.md
+      - "Update a property": lessons/07-update-a-property.md
+  - Application Security:
+      - "Add a hostname to a security config": lessons/08-add-hostname-to-security-config.md
+      - "Review a custom rule & its action": lessons/09-review-custom-rule-action.md
+  - Client Lists:
+      - "View a client list": lessons/10-view-a-client-list.md
+      - "Update a client list": lessons/11-update-a-client-list.md
+  - Identity:
+      - "IAM / IDM basics": lessons/12-iam-idm-basics.md
+  - Reference:
+      - "Cheat sheet": reference/cheat-sheet.md
+      - "Glossary": glossary.md
+      - "Resources": resources.md

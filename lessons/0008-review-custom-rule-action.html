@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 08 · Review a Custom Rule &amp; Its Action</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<header class="ak-masthead">
+  <div class="wrap">
+    <div class="ak-brand"><span class="wave"></span> Akamai · PowerShell 101</div>
+    <p class="ak-kicker">Lesson 08 — Application Security</p>
+    <h1>Review a custom rule and its action</h1>
+    <p class="sub">Read what a custom rule matches, find what each policy does when it matches, and judge whether the two agree with intent.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="ak-meta">
+    <span class="pill">~15 min</span>
+    <span class="pill">Read-only (optional write at §7)</span>
+    <span class="pill">Needs: Lesson 07 concepts</span>
+    <span class="pill">Audit skill</span>
+  </div>
+
+  <div class="card">
+    <p><strong>Where this sits.</strong> Lesson 07 put a hostname under a policy. That policy carries <strong>custom rules</strong> — rules your team wrote, as opposed to Akamai's managed WAF rules. This lesson is about <em>auditing</em> them: a rule that matches attack traffic but is set to <code>alert</code> isn't protecting anyone, and a rule set to <code>deny</code> with sloppy conditions can block customers.</p>
+    <p><strong>The win:</strong> a review table for any config — every custom rule, what it matches in one line, the action each policy gives it, and a verdict.</p>
+  </div>
+
+  <h2><span class="n">1</span>A custom rule has two separate halves</h2>
+  <pre><code>Custom rule DEFINITION        (config-level, shared)
+   id, name, tag, operator, conditions[]   ← WHAT it matches
+
+Policy custom-rule ACTION      (per security policy)
+   ruleId → action             ← WHAT HAPPENS when it matches:
+                                  alert · deny · deny_custom_{id} · none</code></pre>
+  <p>The same rule can be <code>deny</code> in one policy and <code>alert</code> in another. A rule whose action is <code>none</code> in a policy is <strong>defined but inert</strong> there — a common blind spot.</p>
+
+  <h2><span class="n">2</span>List the custom rules in a config</h2>
+  <pre><code><span class="prompt"></span><span class="v">$cfg</span> = <span class="s">'Example-Account Main WAF'</span>
+<span class="prompt"></span><span class="k">Get-AppSecCustomRule</span> -ConfigName <span class="v">$cfg</span> |
+    <span class="k">Select-Object</span> id, name, @{n=<span class="s">'tags'</span>;e={<span class="v">$_</span>.tag -join <span class="s">','</span>}}, @{n=<span class="s">'op'</span>;e={<span class="v">$_</span>.operator}}
+
+<span class="o">id      name                       tags          op
+--      ----                       ----          --
+668001  Block legacy admin paths   custom,ops    AND
+668002  Geo allowlist - APAC only  geo           AND
+668003  Flag scraper user-agents   bots          OR</span></code></pre>
+  <p>Custom rule definitions are <strong>config-level</strong>, not tied to a version in this cmdlet — one library of rules the policies draw from.</p>
+
+  <h2><span class="n">3</span>Read one rule's match logic</h2>
+  <pre><code><span class="prompt"></span><span class="v">$rule</span> = <span class="k">Get-AppSecCustomRule</span> -ConfigName <span class="v">$cfg</span> -RuleID 668001
+<span class="prompt"></span><span class="v">$rule</span>.operator
+<span class="o">AND</span>
+<span class="prompt"></span><span class="v">$rule</span>.conditions | <span class="k">Select-Object</span> type, positiveMatch, name, value, valueWildcard
+
+<span class="o">type              positiveMatch name           value                       valueWildcard
+----              ------------- ----           -----                       -------------
+pathMatch         True                         {/admin/*, /manage/*}       True
+requestMethodMatch True         METHOD         {POST, PUT, DELETE}
+ipMatch           False                        {203.0.113.0/24}</span></code></pre>
+  <p>Read it as a sentence:</p>
+  <div class="callout map">
+    <span class="lbl">Rule 668001 in English</span>
+    <code>operator AND</code> → <strong>all</strong> conditions must hold:
+    path matches <code>/admin/*</code> or <code>/manage/*</code>,
+    <em>and</em> method is POST/PUT/DELETE,
+    <em>and</em> the client IP is <strong>not</strong> in <code>203.0.113.0/24</code> (<code>positiveMatch = False</code> negates).
+  </div>
+  <ul>
+    <li><code>operator</code> — <code>AND</code> (all conditions) or <code>OR</code> (any condition).</li>
+    <li><code>positiveMatch</code> — <code>True</code> = "matches when it's in the set"; <code>False</code> = "matches when it's <em>not</em>".</li>
+    <li><code>valueWildcard</code> / <code>valueCase</code> — whether <code>*</code>/<code>?</code> apply and whether case matters.</li>
+    <li>Condition <code>type</code>s you'll see: <code>pathMatch</code>, <code>requestHeaderMatch</code>, <code>requestMethodMatch</code>, <code>ipMatch</code>, <code>geoMatch</code>, <code>requestCookieMatch</code>, <code>argsMatch</code>, <code>filenameMatch</code>, <code>extensionMatch</code>.</li>
+  </ul>
+
+  <h2><span class="n">4</span>Find the action each policy gives it</h2>
+  <pre><code><span class="prompt"></span><span class="k">Get-AppSecPolicyCustomRule</span> -ConfigName <span class="v">$cfg</span> -VersionNumber latest -PolicyName <span class="s">'Default'</span> |
+    <span class="k">Select-Object</span> ruleId, action
+
+<span class="o">ruleId action
+------ ------
+668001 deny
+668002 deny
+668003 alert
+668004 none</span></code></pre>
+  <table>
+    <thead><tr><th>action</th><th>meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>alert</code></td><td>Log the match as a security event. Request proceeds.</td></tr>
+      <tr><td><code>deny</code></td><td>Block with Akamai's standard 403.</td></tr>
+      <tr><td><code>deny_custom_{id}</code></td><td>Block using a custom deny action (custom status/page/redirect).</td></tr>
+      <tr><td><code>none</code></td><td>Rule is not applied by this policy at all.</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">5</span>Join the two halves into a review table</h2>
+  <pre><code><span class="prompt"></span><span class="v">$defs</span>    = <span class="k">Get-AppSecCustomRule</span> -ConfigName <span class="v">$cfg</span>
+<span class="prompt"></span><span class="v">$actions</span> = <span class="k">Get-AppSecPolicyCustomRule</span> -ConfigName <span class="v">$cfg</span> -VersionNumber latest -PolicyName <span class="s">'Default'</span>
+
+<span class="prompt"></span><span class="v">$defs</span> | <span class="k">ForEach-Object</span> {
+    <span class="v">$d</span> = <span class="v">$_</span>
+    <span class="v">$a</span> = (<span class="v">$actions</span> | <span class="k">Where-Object</span> ruleId -eq <span class="v">$d</span>.id).action
+    [pscustomobject]<span class="p">@{</span>
+        Id      = <span class="v">$d</span>.id
+        Name    = <span class="v">$d</span>.name
+        Match   = <span class="s">"$($d.operator): "</span> + ((<span class="v">$d</span>.conditions | <span class="k">ForEach-Object</span> {
+                    <span class="s">"$($_.type)$(if(-not $_.positiveMatch){' (NOT)'})"</span> }) -join <span class="s">' + '</span>)
+        Action  = <span class="k">if</span> (<span class="v">$a</span>) { <span class="v">$a</span> } <span class="k">else</span> { <span class="s">'(not in policy)'</span> }
+    <span class="p">}</span>
+} | <span class="k">Format-Table</span> -AutoSize -Wrap
+
+<span class="o">Id     Name                      Match                                          Action
+--     ----                      -----                                          ------
+668001 Block legacy admin paths  AND: pathMatch + requestMethodMatch + ipMatch (NOT)  deny
+668002 Geo allowlist - APAC only AND: geoMatch (NOT)                             deny
+668003 Flag scraper user-agents  OR: requestHeaderMatch + requestHeaderMatch     alert
+668004 Old test rule             AND: pathMatch                                  none</span></code></pre>
+
+  <h2><span class="n">6</span>What to flag in a review</h2>
+  <ul>
+    <li><strong>Attack-blocking rule on <code>alert</code></strong> — 668003 flags scrapers but never stops them. Intended, or forgotten after a tuning window?</li>
+    <li><strong>Rule on <code>none</code></strong> — 668004 is dead weight. Remove it, or wire it up.</li>
+    <li><strong>Broad <code>deny</code></strong> — a single-condition <code>deny</code> on <code>pathMatch /api/*</code> blocks a whole surface. Check the condition is really as narrow as intended.</li>
+    <li><strong>Negated allowlists</strong> — 668002 denies everything <em>not</em> in APAC. Confirm the geo set is complete; one missing country = an outage.</li>
+    <li><strong>Sample rate</strong> — <code>$rule.sampleRate</code> below 100 on a <code>deny</code> rule means it only fires on a fraction of matches. Almost always wrong for a block rule.</li>
+    <li><strong>Different action across policies</strong> — run §4 for every policy (<code>Get-AppSecPolicy … | ForEach-Object …</code>); a rule that's <code>deny</code> in “Default” but <code>alert</code> in “Partners” may be deliberate or may be drift.</li>
+  </ul>
+
+  <h2><span class="n">7</span>Optional — retune an action</h2>
+  <p>If the review says a rule should move from <code>alert</code> to <code>deny</code>:</p>
+  <pre><code><span class="prompt"></span><span class="v">$v</span> = (<span class="k">New-AppSecConfigurationVersion</span> -ConfigName <span class="v">$cfg</span> -CreateFromVersion latest).version
+<span class="prompt"></span><span class="k">Set-AppSecPolicyCustomRule</span> -ConfigName <span class="v">$cfg</span> -VersionNumber <span class="v">$v</span> `
+    -PolicyName <span class="s">'Default'</span> -RuleID 668003 -Action deny
+<span class="prompt"></span><span class="k">New-AppSecActivation</span> -ConfigName <span class="v">$cfg</span> -VersionNumber <span class="v">$v</span> `
+    -Network STAGING -NotificationEmails <span class="s">'you@company.com'</span> -Note <span class="s">'668003 alert->deny'</span></code></pre>
+  <div class="callout danger">
+    <span class="lbl">Production — deferred</span>
+    Moving a rule to <code>deny</code> in production starts blocking traffic immediately. Soak on staging, watch the rule's security events for false positives for a real traffic cycle, then promote. Covered later.
+  </div>
+
+  <h2><span class="n">8</span>Where custom rules run</h2>
+  <p>In request evaluation, custom rules fire <strong>after</strong> network lists / client lists and rate controls, and <strong>before</strong> Akamai's managed WAF (KRS/ASE) attack groups and Bot Manager. So a custom <code>deny</code> short-circuits the managed rules — useful, but it means a false positive here is a hard block with no managed-rule nuance. (Full order: the <a href="https://techdocs.akamai.com/application-security/reference/what-the-firewall-does">AppSec execution order</a> reference.)</p>
+
+  <div class="task">
+    <h3>Try it — produce a custom-rule review report</h3>
+    <p>Run the §5 join against a real config and policy. Then answer, in writing, for each rule: <em>does the action match the intent in the name?</em></p>
+    <pre><code>$cfg    = 'YOUR-CONFIG'
+$policy = 'YOUR-POLICY'
+
+$defs    = Get-AppSecCustomRule -ConfigName $cfg
+$actions = Get-AppSecPolicyCustomRule -ConfigName $cfg -VersionNumber latest -PolicyName $policy
+
+$report = $defs | ForEach-Object {
+    $d = $_
+    $a = ($actions | Where-Object ruleId -eq $d.id).action
+    [pscustomobject]@{
+        Id     = $d.id
+        Name   = $d.name
+        Op     = $d.operator
+        Conds  = ($d.conditions | ForEach-Object {
+                   "$($_.type)$(if(-not $_.positiveMatch){'(NOT)'})" }) -join ' + '
+        Sample = $d.sampleRate
+        Action = if ($a) { $a } else { '(not in policy)' }
+    }
+}
+$report | Format-Table -AutoSize -Wrap
+$report | Where-Object { $_.Action -in 'alert','none','(not in policy)' }   # the flags
+$report | Export-Csv $HOME\customrule-review-$cfg.csv -NoTypeInformation</code></pre>
+
+    <details class="reveal">
+      <summary>Show how to read your report</summary>
+      <ul>
+        <li><strong>Anything in the "flags" filter</strong> deserves a sentence of justification. "alert while we tune" is fine <em>if</em> someone owns the tuning; "none" almost never is.</li>
+        <li><strong>A rule named "Block…" with action <code>alert</code></strong> — the name and the action disagree. Either rename or re-action.</li>
+        <li><strong><code>Sample</code> below 100 on a deny</strong> — flag it hard.</li>
+        <li><strong>Empty <code>Conds</code></strong> — a rule with no conditions matches everything. If its action is <code>deny</code>, that's a full outage waiting to be activated.</li>
+        <li>Re-run for each policy from <code>Get-AppSecPolicy -ConfigName $cfg -VersionNumber latest</code> to catch per-policy drift.</li>
+      </ul>
+    </details>
+  </div>
+
+  <h2><span class="n">9</span>Quick check</h2>
+
+  <div class="quiz" data-answer="1">
+    <p class="q">A custom rule exists in the config but its action in the "Default" policy is <code>none</code>. For requests hitting that policy:</p>
+    <button class="opt">The rule logs every match as an event but never blocks it</button>
+    <button class="opt">The rule is not evaluated by that policy at all — it's inert</button>
+    <button class="opt">The rule blocks matches using Akamai's standard 403 response</button>
+    <p class="fb"
+       data-correct="Right — none means the policy doesn't apply the rule; alert is the log-only action."
+       data-incorrect="none = not applied by that policy. The log-only action is alert, not none."></p>
+  </div>
+
+  <div class="quiz" data-answer="2">
+    <p class="q">A condition shows <code>type geoMatch</code>, <code>positiveMatch False</code>, value <code>{JP, KR, SG}</code>. The rule matches when the request comes from:</p>
+    <button class="opt">Any of Japan, Korea, or Singapore — the three listed countries</button>
+    <button class="opt">A country Akamai cannot geolocate from the client IP address</button>
+    <button class="opt">Anywhere except Japan, Korea, or Singapore — the set is negated</button>
+    <p class="fb"
+       data-correct="Yes — positiveMatch False negates: it matches everything outside the listed set."
+       data-incorrect="positiveMatch False inverts the match — it fires for requests NOT from JP/KR/SG."></p>
+  </div>
+
+  <div class="quiz" data-answer="0">
+    <p class="q">To change only what a rule <em>does</em> when it matches, without touching its conditions, you use:</p>
+    <button class="opt"><code>Set-AppSecPolicyCustomRule</code> with a new <code>-Action</code> value</button>
+    <button class="opt"><code>Set-AppSecCustomRule</code> with the rule's full updated body</button>
+    <button class="opt"><code>New-AppSecMatchTarget</code> pointing the rule at a new policy</button>
+    <p class="fb"
+       data-correct="Correct — the action lives on the policy binding; Set-AppSecPolicyCustomRule changes just that."
+       data-incorrect="Action is the policy binding. Set-AppSecPolicyCustomRule -Action changes it; Set-AppSecCustomRule edits conditions."></p>
+  </div>
+
+  <div class="ak-source">
+    <span class="lbl">Primary source — read this next</span>
+    <a href="https://techdocs.akamai.com/application-security/reference/get-config-custom-rules">Application Security API — <em>Custom rules</em></a>
+    (condition types, operators) and
+    <a href="https://techdocs.akamai.com/application-security/reference/get-policy-custom-rules"><em>Custom rule actions</em></a>.
+  </div>
+
+  <div class="ak-ask">
+    Paste me one rule as <code>Get-AppSecCustomRule -ConfigName $cfg -RuleID &lt;id&gt; | ConvertTo-Json -Depth 6</code> and tell me what you think it's supposed to do — I'll help you confirm the conditions actually express that, and whether the action fits.
+  </div>
+
+  <div class="ak-nav">
+    <a href="0007-add-hostname-to-security-config.html">← Lesson 07 — Add a hostname to a security config</a>
+    <span class="mid"><a href="../index.html">☰ All lessons</a></span>
+    <a href="0009-view-a-client-list.html">Lesson 09 — View a client list →</a>
+  </div>
+
+  <p style="margin-top:2rem; font-size:.82rem; color:var(--ak-slate-lt)">
+    See also: <a href="../reference/powershell-akamai-cheatsheet.html">Reference — cheat sheet</a> ·
+    <a href="../GLOSSARY.md">Glossary</a> ·
+    <a href="../RESOURCES.md">All resources</a>
+  </p>
+
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
