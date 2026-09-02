@@ -61,6 +61,27 @@ assets are relative, so the site also works unchanged at `/` or any other
 prefix. To preview with a different prefix, rebuild with
 `--build-arg SITE_URL=https://example.com/foo/` and adjust `nginx/default.conf`.
 
+## Security scanning
+
+`scripts/security-scan.sh` builds the image and runs [Trivy](https://trivy.dev)
+against it — OS-package CVEs plus Dockerfile misconfiguration. It uses a native
+`trivy` if you have one (`brew install trivy`), otherwise it runs Trivy from its
+own container, so Docker or Podman is the only requirement.
+
+```bash
+./scripts/security-scan.sh                 # fails on any HIGH/CRITICAL with a fix
+SEVERITY=CRITICAL ./scripts/security-scan.sh
+IGNORE_UNFIXED=0 ./scripts/security-scan.sh # also count CVEs with no fix yet
+```
+
+The same scan runs in CI — `.github/workflows/security-scan.yml`, on every push
+/ PR that touches the image and weekly on a schedule (new CVEs land against an
+unchanged image). Findings are uploaded to the repo's **Security → Code
+scanning** tab; the job fails the build on HIGH/CRITICAL.
+
+The Dockerfile's final stage runs `apk upgrade` so the image ships current
+Alpine package versions regardless of when the base image was last rebuilt.
+
 ## What's custom
 
 Relative to a stock Material site, all under `mkdocs/docs/`:

@@ -21,8 +21,14 @@ RUN mkdocs build --strict -d /site
 
 # ---- Stage 2: serve it ----
 # nginx-unprivileged already listens on 8080 (plain HTTP) and runs as a non-root
-# user — exactly what GSAP asks for.
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+# user — exactly what GSAP asks for. 1.30 = current stable line, on Alpine 3.24.
+FROM nginxinc/nginx-unprivileged:1.30-alpine
+
+# Pull any OS package security fixes released since the base image was built,
+# then drop back to the non-root user the base image runs as.
+USER root
+RUN apk upgrade --no-cache
+USER nginx
 
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /site /usr/share/nginx/html/pwsh-lessons/

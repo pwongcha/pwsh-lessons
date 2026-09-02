@@ -1,0 +1,104 @@
+name: Security scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "nginx/**"
+      - "mkdocs/requirements.txt"
+      - "scripts/security-scan.sh"
+      - ".github/workflows/security-scan.yml"
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "nginx/**"
+      - "mkdocs/requirements.txt"
+      - "scripts/security-scan.sh"
+      - ".github/workflows/security-scan.yml"
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC — catch newly-disclosed CVEs in an unchanged image
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: Image CVEs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to the Security tab
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t pwsh-lessons:scan .
+
+      # Full report -> SARIF -> GitHub code scanning (Security tab).
+      - name: Trivy scan (SARIF)
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: pwsh-lessons:scan
+          scan-type: image
+          format: sarif
+          output: trivy-image.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true # needs a public repo or GitHub Advanced Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
+      # Second pass: print a table and fail the job on HIGH/CRITICAL.
+      - name: Trivy scan (gate)
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: pwsh-lessons:scan
+          scan-type: image
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  config:
+    name: Dockerfile & config
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy config scan (SARIF)
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+          severity: HIGH,CRITICAL
+
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+
+      - name: Trivy config scan (gate)
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "1"
