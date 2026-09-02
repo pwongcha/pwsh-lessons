@@ -102,7 +102,7 @@ The commands you reach for again and again.  `Ctrl/Cmd+P` → *Print* for a pape
 
     ```text
     -EdgeRCFile C:\Users\you\.edgerc   # default path if omitted
-    -Section example-account                  # default: "default"
+    -Section example-account           # default: "default"
     # env vars instead: AKAMAI_HOST, AKAMAI_CLIENT_TOKEN, ...
     ```
 
@@ -118,16 +118,150 @@ The commands you reach for again and again.  `Ctrl/Cmd+P` → *Print* for a pape
 
 ## Akamai — task → cmdlet map
 
-| Task | Cmdlets, in order |
-| --- | --- |
-| **Inspect / update a certificate (CPS)** | `Get-CPSEnrollment -ContractID …` (list) **or** `-EnrollmentID …` (one — not `-id`; can't combine with `-ContractID`) → `Get-CPSStagingDeployment` / `Get-CPSProductionDeployment` → `Get-CPSChangeHistory` → edit `$enr.csr.sans` → `Set-CPSEnrollment -EnrollmentID … -Body $enr` → `Get-CPSChangeStatus -ChangeID …` (read `allowedInput`) → `Confirm-CPSPreVerificationWarnings … -Acknowledgement acknowledge` → `Complete-CPSChange … -Acknowledgement acknowledge` (staging → production) |
-| **Find a property** | `Find-Property -PropertyName www.example.com` (exact — no wildcards; or `-PropertyHostname`) → `Get-Property` → `Get-PropertyVersion` → `Get-PropertyHostname` → `Get-PropertyRules -PropertyVersion latest`.  Fragment search: enumerate `Get-Group` → `Get-Property -GroupID … -ContractId …` then `Where-Object propertyName -like '*www*'` |
-| **Update a property** | `New-PropertyVersion -CreateFromVersion latest` → `Get-PropertyRules … -OutputToFile` (edit JSON) → `Set-PropertyRules` / `Update-PropertyRule` → `New-PropertyActivation -Network STAGING` → `Get-PropertyActivation` |
-| **Add hostname to security config** | `Get-AppSecSelectableHostnames` (preflight) → `New-AppSecConfigurationVersion -CreateFromVersion latest` → `Add-AppSecSelectedHostnames -Body @{hostnameList=@(@{hostname='new.example.com'})}` → check `Get-AppSecMatchTarget` (else `Add-AppSecPolicySelectedHostnames`) → `New-AppSecActivation -Network STAGING -NotificationEmails …` → `Get-AppSecActivationStatus` |
-| **Review a custom rule + action** | `Get-AppSecCustomRule -ConfigName …` (list defs) → `Get-AppSecCustomRule -RuleID …` (operator + conditions) → `Get-AppSecPolicyCustomRule -VersionNumber latest -PolicyName …` (per-policy `action`: alert / deny / deny_custom_{id} / none) → retune with `Set-AppSecPolicyCustomRule -Action deny` |
-| **View a client list** | `Get-ClientList` (all; `-Type IP`, `-Search`, `-Name`) → `Get-ClientList -ListID … -IncludeItems` → `Get-ClientListItem -ListID …` → `Get-ClientListActivationStatus -ListID … -Environment PRODUCTION` |
-| **Update a client list** | `Add-ClientListItem -ListID … -Items @(@{value='1.2.3.4/32';tags=@('soc');expirationDate='…Z'})` / `Set-ClientListItem -Value …` / `Remove-ClientListItem -Value …` / `Import-ClientListItem -File ips.csv` → `New-ClientListActivation -ListID … -Network STAGING -Comments … -NotificationRecipients …` → `Get-ClientListActivationStatus -Environment STAGING` |
-| **IAM / IDM management** | `Get-IAMUser` / `Get-IAMUser -UIIdentityID … -AuthGrants -Actions` → `Get-IAMRole`, `Get-IAMGrantableRole -GroupID …`, `Get-IAMGroup` → `New-IAMUser -Body @{firstName;lastName;email;country;authGrants=@(@{groupId;roleId})} -SendEmail`, `Set-IAMUser`, `Lock-IAMUser` / `Unlock-IAMUser`, `Remove-IAMUser` |
+One entry per lesson (05–12): the cmdlet sequence in call order, and — where the
+syntax is fiddly enough to want it — a runnable snippet with real values.  Full
+parameter lists and the reasoning are in the lesson linked from each heading.
+
+### Inspect / update a certificate — CPS ([Lesson 05](../lessons/05-inspect-and-update-a-certificate.md))
+
+1. `Get-CPSEnrollment` — `-ContractID` lists all; `-EnrollmentID` opens one
+2. `Get-CPSStagingDeployment` / `Get-CPSProductionDeployment` — what's live now
+3. `Get-CPSChangeHistory` — past modifications and outcomes (`Get-CPSCertificateHistory` = certs deployed)
+4. Edit `$enr.csr.sans`, then `Set-CPSEnrollment -Body $enr` — submit the change
+5. `Get-CPSChangeStatus` — read `allowedInput` for the next step it wants
+6. `Confirm-CPSPreVerificationWarnings -Acknowledgement acknowledge`
+7. `Complete-CPSChange -Acknowledgement acknowledge` — staging, then production
+
+```powershell
+# read
+Get-CPSEnrollment -ContractID 1-ABC123 |
+  Select id, @{n='cn';e={$_.csr.cn}}, @{n='sans';e={$_.csr.sans -join ','}}, validationType
+$enr = Get-CPSEnrollment -EnrollmentID 123456
+Get-CPSStagingDeployment    -EnrollmentID 123456
+Get-CPSProductionDeployment -EnrollmentID 123456
+Get-CPSChangeHistory        -EnrollmentID 123456   # modifications + outcome
+Get-CPSCertificateHistory   -EnrollmentID 123456   # certs deployed
+
+# add a SAN
+$enr.csr.sans += 'new.example.com'
+Set-CPSEnrollment -EnrollmentID 123456 -Body $enr
+$changeId = (Get-CPSEnrollment -EnrollmentID 123456).pendingChanges[0].location.Split('/')[-1]
+
+# walk the change → staging → production
+Get-CPSChangeStatus -EnrollmentID 123456 -ChangeID $changeId   # read .allowedInput
+Confirm-CPSLetsEncryptChallengesCompleted -EnrollmentID 123456 -ChangeID $changeId
+Confirm-CPSPreVerificationWarnings  -EnrollmentID 123456 -ChangeID $changeId -Acknowledgement acknowledge
+Confirm-CPSPostVerificationWarnings -EnrollmentID 123456 -ChangeID $changeId -Acknowledgement acknowledge
+Complete-CPSChange  -EnrollmentID 123456 -ChangeID $changeId -Acknowledgement acknowledge
+Remove-CPSChange    -EnrollmentID 123456 -ChangeID $changeId   # cancel a stuck change
+```
+
+!!! note "Watch out"
+    `-EnrollmentID` is not `-id`, and can't be combined with `-ContractID`.
+
+### Find a property ([Lesson 06](../lessons/06-find-a-property.md))
+
+1. `Find-Property -PropertyName www.example.com` — exact, no wildcards (or `-PropertyHostname`)
+2. `Get-Property` → `Get-PropertyVersion` → `Get-PropertyHostname`
+3. `Get-PropertyRules -PropertyVersion latest` — the rule tree
+
+```powershell
+Find-Property -PropertyName www.example.com                     # exact
+Find-Property -PropertyHostname www.example.com
+Find-Property -PropertyName www.example.com -JustProductionActive
+$p = Get-Property -PropertyName www.example.com
+$p.propertyId ; $p.latestVersion ; $p.productionVersion ; $p.stagingVersion
+
+Get-PropertyVersion  -PropertyName x -PropertyVersion latest
+Get-PropertyActivation -PropertyName x |
+  Sort-Object submitDate -Descending |
+  Select-Object -First 5 network, status, note
+Get-PropertyHostname -PropertyName x -PropertyVersion latest |
+  Select-Object cnameFrom, cnameTo, certStatus
+
+$r = Get-PropertyRules -PropertyName x -PropertyVersion latest  # large JSON
+$r.rules.children.name
+$r.rules.behaviors | Where-Object name -eq 'origin'
+```
+
+*Fragment search:* enumerate `Get-Group` → `Get-Property -GroupID … -ContractId …`,
+then `Where-Object propertyName -like '*www*'`.
+
+### Update a property ([Lesson 07](../lessons/07-update-a-property.md))
+
+1. `New-PropertyVersion -CreateFromVersion latest` — never edit the live version
+2. `Get-PropertyRules … -OutputToFile` — pull the JSON, edit it
+3. `Set-PropertyRules` (whole tree) / `Update-PropertyRule` (one rule) — push it back
+4. `New-PropertyActivation -Network STAGING`
+5. `Get-PropertyActivation` — poll until active
+
+```powershell
+$ver = (New-PropertyVersion -PropertyName x -CreateFromVersion latest).propertyVersion
+Get-PropertyRules -PropertyName x -PropertyVersion $ver `
+  -OutputToFile -OutputFileName x-v$ver.json                  # edit the file
+# one setting:
+Update-PropertyRule -PropertyName x -PropertyVersion $ver -Path '/…' -Body $behavior
+# whole tree:
+Set-PropertyRules   -PropertyName x -PropertyVersion $ver -InputFile x-v$ver.json -ValidateRules
+New-PropertyActivation -PropertyName x -PropertyVersion $ver -Network STAGING -Note '...'
+Get-PropertyActivation -PropertyName x | Sort-Object submitDate -Descending | Select -First 3
+```
+
+### Add a hostname to a security config ([Lesson 08](../lessons/08-add-hostname-to-security-config.md))
+
+1. `Get-AppSecSelectableHostnames` — preflight: is the host addable?
+2. `New-AppSecConfigurationVersion -CreateFromVersion latest`
+3. `Add-AppSecSelectedHostnames` — add the hostname to the config
+4. `Get-AppSecMatchTarget` — if it lists specific hosts, `Add-AppSecPolicySelectedHostnames` too
+5. `New-AppSecActivation -Network STAGING -NotificationEmails …`
+6. `Get-AppSecActivationStatus`
+
+```powershell
+Get-AppSecConfiguration | Select id,name,latestVersion,stagingVersion,productionVersion
+Get-AppSecSelectableHostnames -ConfigName 'Main WAF' -VersionNumber latest
+
+$v = (New-AppSecConfigurationVersion -ConfigName 'Main WAF' -CreateFromVersion latest).version
+$body = @{ hostnameList = @( @{ hostname = 'new.example.com' } ) }
+Add-AppSecSelectedHostnames -ConfigName 'Main WAF' -VersionNumber $v -Body $body
+
+Get-AppSecMatchTarget -ConfigName 'Main WAF' -VersionNumber $v
+# only if a match target lists specific hosts:
+Add-AppSecPolicySelectedHostnames -ConfigName 'Main WAF' -VersionNumber $v -PolicyName 'Default' -Body $body
+
+$a = New-AppSecActivation -ConfigName 'Main WAF' -VersionNumber $v `
+       -Network STAGING -NotificationEmails 'you@co.com' -Note '...'
+# if invalid hosts:  add -AcknowledgedInvalidHosts 'new.example.com'
+Get-AppSecActivationStatus -ActivationID $a.activationId
+```
+
+### Review a custom rule + action ([Lesson 09](../lessons/09-review-custom-rule-action.md))
+
+1. `Get-AppSecCustomRule -ConfigName …` — list rule definitions
+2. `Get-AppSecCustomRule -RuleID …` — operator and conditions for one
+3. `Get-AppSecPolicyCustomRule -PolicyName …` — the per-policy `action`
+   (`alert` / `deny` / `deny_custom_{id}` / `none`)
+4. `Set-AppSecPolicyCustomRule -Action deny` — retune
+
+### View a client list ([Lesson 10](../lessons/10-view-a-client-list.md))
+
+1. `Get-ClientList` — all lists (`-Type IP`, `-Search`, `-Name` to narrow)
+2. `Get-ClientList -ListID … -IncludeItems` — one list with its entries
+3. `Get-ClientListItem -ListID …` — just the entries
+4. `Get-ClientListActivationStatus -ListID … -Environment PRODUCTION`
+
+### Update a client list ([Lesson 11](../lessons/11-update-a-client-list.md))
+
+1. Change entries: `Add-ClientListItem` / `Set-ClientListItem` /
+   `Remove-ClientListItem` / `Import-ClientListItem -File ips.csv`
+2. `New-ClientListActivation -ListID … -Network STAGING -Comments … -NotificationRecipients …`
+3. `Get-ClientListActivationStatus -Environment STAGING`
+
+### IAM / IDM management ([Lesson 12](../lessons/12-iam-idm-basics.md))
+
+1. `Get-IAMUser` — all users; add `-UIIdentityID … -AuthGrants -Actions` for one
+2. `Get-IAMRole`, `Get-IAMGrantableRole -GroupID …`, `Get-IAMGroup` — what you can assign
+3. Change users: `New-IAMUser -SendEmail`, `Set-IAMUser`,
+   `Lock-IAMUser` / `Unlock-IAMUser`, `Remove-IAMUser`
 
 !!! warning "Golden rules"
     1. Reads (`Get-*`, `Find-*`) are always safe — explore freely.
@@ -138,127 +272,4 @@ The commands you reach for again and again.  `Ctrl/Cmd+P` → *Print* for a pape
 !!! note "Parameter names vary by module version"
     Confirm with `Get-Help <cmdlet> -Full` or
     [techdocs.akamai.com/powershell](https://techdocs.akamai.com/powershell/docs/overview).
-    Lessons 05–11 pin the exact syntax per task.
-
-## Certificates — CPS ([Lesson 05](../lessons/05-inspect-and-update-a-certificate.md))
-
-<div class="grid cards" markdown>
-
--   __Read enrollments & deployments__
-
-    ```powershell
-    Get-CPSEnrollment -ContractID 1-ABC123 |
-      Select id, @{n='cn';e={$_.csr.cn}}, @{n='sans';e={$_.csr.sans -join ','}}, validationType
-    $enr = Get-CPSEnrollment -EnrollmentID 123456
-    Get-CPSStagingDeployment    -EnrollmentID 123456
-    Get-CPSProductionDeployment -EnrollmentID 123456
-    Get-CPSCertificateHistory   -EnrollmentID 123456
-    ```
-
--   __Submit a change (add a SAN)__
-
-    ```powershell
-    $enr.csr.sans += 'new.example.com'
-    Set-CPSEnrollment -EnrollmentID 123456 -Body $enr
-    $changeId = (Get-CPSEnrollment -EnrollmentID 123456).pendingChanges[0].location.Split('/')[-1]
-    ```
-
--   __Walk the change → staging → production__
-
-    ```powershell
-    Get-CPSChangeStatus -EnrollmentID 123456 -ChangeID $changeId   # read .allowedInput
-    Confirm-CPSLetsEncryptChallengesCompleted -EnrollmentID 123456 -ChangeID $changeId
-    Confirm-CPSPreVerificationWarnings  -EnrollmentID 123456 -ChangeID $changeId -Acknowledgement acknowledge
-    Confirm-CPSPostVerificationWarnings -EnrollmentID 123456 -ChangeID $changeId -Acknowledgement acknowledge
-    Complete-CPSChange  -EnrollmentID 123456 -ChangeID $changeId -Acknowledgement acknowledge
-    Remove-CPSChange    -EnrollmentID 123456 -ChangeID $changeId   # cancel a stuck change
-    ```
-
-</div>
-
-## Property — read & inspect ([Lesson 06](../lessons/06-find-a-property.md))
-
-<div class="grid cards" markdown>
-
--   __Find & open__
-
-    ```powershell
-    Find-Property -PropertyName www.example.com      # exact, no wildcards
-    Find-Property -PropertyHostname www.example.com
-    Find-Property -PropertyName www.example.com -JustProductionActive
-    $p = Get-Property -PropertyName www.example.com
-    $p.propertyId ; $p.latestVersion
-    $p.productionVersion ; $p.stagingVersion
-    ```
-
--   __Versions & activations__
-
-    ```powershell
-    Get-PropertyVersion -PropertyName x            # list all
-    Get-PropertyVersion -PropertyName x -PropertyVersion latest
-    Get-PropertyActivation -PropertyName x |
-      Sort-Object submitDate -Descending |
-      Select-Object -First 5 network, status, note
-    ```
-
--   __Hostnames__
-
-    ```powershell
-    Get-PropertyHostname -PropertyName x -PropertyVersion latest |
-      Select-Object cnameFrom, cnameTo, certStatus
-    ```
-
--   __Rule tree (large JSON)__
-
-    ```powershell
-    $r = Get-PropertyRules -PropertyName x -PropertyVersion latest
-    $r.rules.children.name                  # top-level rule names
-    $r.rules.behaviors | Where-Object name -eq 'origin'
-    Get-PropertyRules -PropertyName x -PropertyVersion latest `
-      -OutputToFile -OutputFileName x-latest.json
-    ```
-
-</div>
-
-## AppSec — hostnames & activation ([Lesson 08](../lessons/08-add-hostname-to-security-config.md))
-
-<div class="grid cards" markdown>
-
--   __Find config & preflight__
-
-    ```powershell
-    Get-AppSecConfiguration | Select id,name,latestVersion,stagingVersion,productionVersion
-    Get-AppSecConfiguration -ConfigName 'Main WAF'
-    Get-AppSecSelectableHostnames -ConfigName 'Main WAF' -VersionNumber latest
-    ```
-
--   __New version + add hostname__
-
-    ```powershell
-    $v = (New-AppSecConfigurationVersion -ConfigName 'Main WAF' `
-            -CreateFromVersion latest).version
-    $body = @{ hostnameList = @( @{ hostname = 'new.example.com' } ) }
-    Add-AppSecSelectedHostnames -ConfigName 'Main WAF' -VersionNumber $v -Body $body
-    (Get-AppSecSelectedHostnames -ConfigName 'Main WAF' -VersionNumber $v).hostnameList.hostname
-    ```
-
--   __Policy / match target__
-
-    ```powershell
-    Get-AppSecMatchTarget -ConfigName 'Main WAF' -VersionNumber $v
-    Get-AppSecPolicy      -ConfigName 'Main WAF' -VersionNumber $v
-    # only if match target lists specific hosts:
-    Add-AppSecPolicySelectedHostnames -ConfigName 'Main WAF' -VersionNumber $v `
-      -PolicyName 'Default' -Body $body
-    ```
-
--   __Activate & poll__
-
-    ```powershell
-    $a = New-AppSecActivation -ConfigName 'Main WAF' -VersionNumber $v `
-          -Network STAGING -NotificationEmails 'you@co.com' -Note '...'
-    # if invalid hosts: add -AcknowledgedInvalidHosts 'new.example.com'
-    Get-AppSecActivationStatus -ActivationID $a.activationId
-    ```
-
-</div>
+    Lessons 05–12 pin the exact syntax per task.
