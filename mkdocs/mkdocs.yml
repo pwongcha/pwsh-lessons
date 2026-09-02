@@ -1,6 +1,7 @@
 site_name: "Akamai PowerShell Lessons"
 site_description: "Operate Akamai from a Windows shell — twelve short, practical lessons."
 site_author: "Akamai"
+site_url: "https://pwongcha.github.io/pwsh-lessons/"
 copyright: "© 2026 Akamai Technologies"
 docs_dir: docs
 
