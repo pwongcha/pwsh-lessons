@@ -128,10 +128,6 @@ open.  Come back to the lessons only when a step doesn't behave.
 - [r/PowerShell](https://www.reddit.com/r/PowerShell/) — for the PowerShell
   technique itself (pipelines, objects, scripting), not Akamai specifics.
 
-**Natural next topics** (currently out of scope — tell your teacher if you want to
-go here): a safe *production* activation workflow with diffing and rollback;
-wrapping these steps into reusable PowerShell functions; comparing the module to
-the Akamai CLI and Terraform.
 
 !!! quote "Primary source — read this next"
     [Identity & Access Management API](https://techdocs.akamai.com/iam-user-admin/reference/api)
