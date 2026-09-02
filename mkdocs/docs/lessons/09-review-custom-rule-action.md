@@ -246,10 +246,5 @@ reference.)
     (condition types, operators) and
     [*Custom rule actions*](https://techdocs.akamai.com/application-security/reference/get-policy-custom-rules).
 
-!!! question "Ask your teacher"
-    Paste me one rule as
-    `Get-AppSecCustomRule -ConfigName $cfg -RuleID <id> | ConvertTo-Json -Depth 6`
-    and tell me what you think it's supposed to do — I'll help you confirm the
-    conditions actually express that, and whether the action fits.
 
 <div id="lesson-meta" data-slug="09-review-custom-rule-action" hidden></div>

@@ -258,11 +258,5 @@ hostname.  In *alert*-only mode you'll get `200` — check the security events /
     [Application Security API — *Modify the list of selected hostnames*](https://techdocs.akamai.com/application-security/reference/put-selected-hostnames)
     and [*Activate a configuration*](https://techdocs.akamai.com/application-security/reference/post-activations).
 
-!!! question "Ask your teacher"
-    Not sure whether your config's match targets already cover the new hostname?
-    Paste me
-    `Get-AppSecMatchTarget -ConfigName $cfg -VersionNumber $v | ConvertTo-Json -Depth 5`
-    and I'll tell you whether you need `Add-AppSecPolicySelectedHostnames` or
-    you're already done.
 
 <div id="lesson-meta" data-slug="08-add-hostname-to-security-config" hidden></div>

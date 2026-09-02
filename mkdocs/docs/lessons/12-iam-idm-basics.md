@@ -137,9 +137,5 @@ the Akamai CLI and Terraform.
     [Identity & Access Management API](https://techdocs.akamai.com/iam-user-admin/reference/api)
     — users, roles, groups, and the grant model.
 
-!!! question "Ask your teacher"
-    That's the planned course.  If a lesson's cmdlet didn't match your installed
-    module, or you want a lesson on something in "next topics", tell me — we can
-    add lessons 13+.
 
 <div id="lesson-meta" data-slug="12-iam-idm-basics" hidden></div>

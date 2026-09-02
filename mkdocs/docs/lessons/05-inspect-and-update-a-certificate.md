@@ -233,9 +233,5 @@ Remove-CPSChange -EnrollmentID 123456 -ChangeID $changeId
     [Certificate Provisioning System API](https://techdocs.akamai.com/cps/reference/api)
     — enrollments, changes, deployments, and the full change lifecycle diagram.
 
-!!! question "Ask your teacher"
-    Paste `Get-CPSEnrollment -EnrollmentID <id> | ConvertTo-Json -Depth 8` and
-    tell me what you want to change — I'll help you find the right field and the
-    gates that specific change will hit.
 
 <div id="lesson-meta" data-slug="05-inspect-and-update-a-certificate" hidden></div>

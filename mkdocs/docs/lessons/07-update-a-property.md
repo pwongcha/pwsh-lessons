@@ -259,10 +259,5 @@ can do a deeper staging check.
     and [*Activate a property*](https://techdocs.akamai.com/property-mgr/reference/post-property-activations)
     for the status lifecycle (PENDING → ZONE_1/2/3 → ACTIVE).
 
-!!! question "Ask your teacher"
-    Activation came back `FAILED`, or the acknowledge-warnings parameter isn't
-    where the lesson says?  Paste me the full `Get-PropertyActivation` object (or
-    `Get-Help New-PropertyActivation -Parameter *`) — parameter names for warning
-    acknowledgement shifted between module versions and I'll give you the exact one.
 
 <div id="lesson-meta" data-slug="07-update-a-property" hidden></div>

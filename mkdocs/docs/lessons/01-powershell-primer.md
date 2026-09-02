@@ -188,10 +188,6 @@ Read a JSON file from disk the same way:
         img.example.com                9                 7
         ```
 
-        If you got `www` and `img`, you have the core skill this whole course
-        rests on.  If `$_` or the `{ }` braces tripped you up, that is the #1
-        thing to ask your teacher about before Lesson 02.
-
 ## Quiz
 
 <div class="quiz" data-answer="1">

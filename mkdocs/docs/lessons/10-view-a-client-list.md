@@ -202,9 +202,5 @@ Get-ClientListItem -ListID $id |
     and the [Client Lists product docs](https://techdocs.akamai.com/client-lists/docs)
     for the activation lifecycle.
 
-!!! question "Ask your teacher"
-    Not sure which security configs or properties depend on a list before you
-    touch it?  Give me the `listId` and your main config name — I'll help you map
-    the references so Lesson 11's change doesn't surprise anyone.
 
 <div id="lesson-meta" data-slug="10-view-a-client-list" hidden></div>

@@ -255,10 +255,5 @@ Get-PropertyRules -PropertyName www.example.com -PropertyVersion latest `
     [Property Manager API — *List / Get properties*](https://techdocs.akamai.com/property-mgr/reference/get-properties)
     for the response fields.
 
-!!! question "Ask your teacher"
-    Rule tree hard to navigate?  Paste me the output of
-    `$r.rules | ConvertTo-Json -Depth 3` and tell me what you're hunting for — a
-    behavior, a match condition, a specific child rule — and I'll show you the
-    exact path to it.
 
 <div id="lesson-meta" data-slug="06-find-a-property" hidden></div>
